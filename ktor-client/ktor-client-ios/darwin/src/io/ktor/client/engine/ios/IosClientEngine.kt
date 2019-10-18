@@ -26,6 +26,8 @@ internal class IosClientEngine(override val config: IosClientEngineConfig) : Htt
     // TODO: replace with UI dispatcher
     override val dispatcher: CoroutineDispatcher = Dispatchers.Unconfined
 
+    override val clientContext = SilentSupervisor()
+
     override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
 
     override suspend fun execute(
