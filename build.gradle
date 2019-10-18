@@ -189,8 +189,10 @@ task rootAllTest(type: org.jetbrains.kotlin.gradle.testing.internal.KotlinTestRe
         }
     }
 
-    project.gradle.taskGraph.whenReady { graph ->
-        rootAllTest.maybeOverrideReporting(graph)
+    beforeEvaluate {
+        project.gradle.taskGraph.whenReady { graph ->
+            rootAllTest.maybeOverrideReporting(graph)
+        }
     }
 }
 
