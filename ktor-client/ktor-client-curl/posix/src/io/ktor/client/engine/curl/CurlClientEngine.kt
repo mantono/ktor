@@ -17,6 +17,9 @@ import io.ktor.utils.io.*
 import kotlin.coroutines.*
 
 internal class CurlClientEngine(override val config: CurlClientEngineConfig) : HttpClientEngine {
+
+    override val clientContext = SilentSupervisor()
+
     override val dispatcher: CoroutineDispatcher = Dispatchers.Unconfined
     override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
 

@@ -20,6 +20,9 @@ import kotlin.coroutines.*
 @Suppress("KDocMissingDocumentation")
 @KtorExperimentalAPI
 class TestHttpClientEngine(override val config: TestHttpClientConfig) : HttpClientEngine {
+
+    override val clientContext = SilentSupervisor()
+
     override val dispatcher: CoroutineDispatcher = Dispatchers.IO
     override val coroutineContext: CoroutineContext = dispatcher
 

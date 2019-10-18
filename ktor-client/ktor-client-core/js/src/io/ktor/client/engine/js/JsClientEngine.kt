@@ -20,6 +20,9 @@ import org.w3c.fetch.Headers
 import kotlin.coroutines.*
 
 internal class JsClientEngine(override val config: HttpClientEngineConfig) : HttpClientEngine {
+
+    override val clientContext = SilentSupervisor()
+
     override val dispatcher: CoroutineDispatcher = Dispatchers.Default
 
     override val coroutineContext: CoroutineContext = dispatcher + SilentSupervisor()
