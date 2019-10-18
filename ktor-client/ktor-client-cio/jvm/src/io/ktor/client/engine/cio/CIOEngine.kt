@@ -38,7 +38,7 @@ internal class CIOEngine(
             if (closed.value) throw ClientClosedException()
 
             val endpoint = selectEndpoint(data.url, proxy)
-            val callContext = createCallContext()
+            val callContext = createCallContext(data.executionContext)
             try {
                 return endpoint.execute(data, callContext)
             } catch (cause: ClosedSendChannelException) {

@@ -11,11 +11,16 @@ import io.ktor.http.*
 import io.ktor.util.*
 import kotlinx.coroutines.*
 import io.ktor.utils.io.core.*
+import kotlin.coroutines.*
 
 /**
  * Base interface use to define engines for [HttpClient].
  */
 interface HttpClientEngine : CoroutineScope, Closeable {
+    /**
+     * [CoroutineContext] of the client
+     */
+    val clientContext: CoroutineContext
 
     /**
      * [CoroutineDispatcher] specified for io operations.
@@ -38,6 +43,10 @@ interface HttpClientEngine : CoroutineScope, Closeable {
      */
     @InternalAPI
     fun install(client: HttpClient) {
+        client.requestPipeline.intercept(HttpRequestPipeline.Before) {
+            context.executionContext = clientContext[Job]!!
+        }
+
         client.sendPipeline.intercept(HttpSendPipeline.Engine) { content ->
             val requestData = HttpRequestBuilder().apply {
                 takeFrom(context)

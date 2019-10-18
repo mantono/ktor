@@ -14,7 +14,9 @@ import kotlin.coroutines.*
  */
 @Suppress("KDocMissingDocumentation")
 abstract class HttpClientJvmEngine(engineName: String) : HttpClientEngine {
-    private val clientContext = SilentSupervisor()
+
+    override val clientContext = SilentSupervisor()
+
     private val _dispatcher by lazy {
         Executors.newFixedThreadPool(config.threadsCount) {
             Thread(it).apply {
@@ -36,8 +38,8 @@ abstract class HttpClientJvmEngine(engineName: String) : HttpClientEngine {
      * Create [CoroutineContext] to execute call.
      */
     @UseExperimental(InternalCoroutinesApi::class)
-    protected suspend fun createCallContext(): CoroutineContext {
-        val callJob = Job(clientContext[Job])
+    protected suspend fun createCallContext(executionContext: Job): CoroutineContext {
+        val callJob = Job(executionContext)
         val callContext = coroutineContext + callJob
 
         val parentCoroutineJob = currentContext()[Job]

@@ -20,7 +20,7 @@ internal class ApacheEngine(override val config: ApacheEngineConfig) : HttpClien
     private val engine: CloseableHttpAsyncClient = prepareClient().apply { start() }
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext()
+        val callContext = createCallContext(data.executionContext)
         val apacheRequest = ApacheRequestProducer(data, config, callContext)
         return engine.sendRequest(apacheRequest, callContext)
     }

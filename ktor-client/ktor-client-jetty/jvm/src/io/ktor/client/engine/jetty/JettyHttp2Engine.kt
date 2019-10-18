@@ -25,7 +25,7 @@ internal class JettyHttp2Engine(
     }
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext()
+        val callContext = createCallContext(data.executionContext)
         return try {
             data.executeRequest(jettyClient, config, callContext)
         } catch (cause: Throwable) {

@@ -27,7 +27,7 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
     override suspend fun execute(
         data: HttpRequestData
     ): HttpResponseData {
-        val callContext: CoroutineContext = createCallContext()
+        val callContext: CoroutineContext = createCallContext(data.executionContext)
         return async(callContext) {
             val requestTime: GMTDate = GMTDate()
 

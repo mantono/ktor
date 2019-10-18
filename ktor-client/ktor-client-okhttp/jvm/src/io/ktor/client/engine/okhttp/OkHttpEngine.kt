@@ -34,7 +34,7 @@ class OkHttpEngine(
     }
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
-        val callContext = createCallContext()
+        val callContext = createCallContext(data.executionContext)
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
         return try {

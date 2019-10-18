@@ -40,6 +40,8 @@ class MockEngine(
 
     override val coroutineContext: CoroutineContext = dispatcher + contextState
 
+    override val clientContext: CoroutineContext = coroutineContext // TODO: Looks weird.
+
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         if (invocationCount >= config.requestHandlers.size) error("Unhandled ${data.url}")
         val handler = config.requestHandlers[invocationCount]
