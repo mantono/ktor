@@ -61,7 +61,8 @@ interface HttpClientEngine : CoroutineScope, Closeable {
             responseData.callContext[Job]!!.invokeOnCompletion { cause ->
                 @Suppress("UNCHECKED_CAST")
                 val childContext = requestData.executionContext as CompletableJob
-                if (cause == null) childContext.complete() else childContext.completeExceptionally(cause)
+                if (cause != null) childContext.completeExceptionally(cause)
+                // Only an exception means that we need to interrupt execution, otherwise it should proceed.
             }
 
             proceedWith(call)

@@ -12,7 +12,7 @@ import kotlin.test.*
 
 class HttpTimeoutTest : ClientLoader() {
     @Test
-    fun requestTest(): Unit = clientTest {
+    fun getTest(): Unit = clientTest {
         config {
             install(HttpTimeout) { requestTimeout = 100 }
         }
@@ -24,7 +24,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun requestTimeoutTest(): Unit = clientTest {
+    fun getRequestTimeoutTest(): Unit = clientTest {
         config {
             install(HttpTimeout) { requestTimeout = 100 }
         }
@@ -39,7 +39,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun requestStreamTest(): Unit = clientTest {
+    fun getStreamTest(): Unit = clientTest {
         config {
             install(HttpTimeout) { requestTimeout = 100 }
         }
@@ -52,7 +52,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun requestTimeoutStreamTest(): Unit = clientTest {
+    fun getStreamRequestTimeoutTest(): Unit = clientTest {
         config {
             install(HttpTimeout) { requestTimeout = 100 }
         }
@@ -62,6 +62,49 @@ class HttpTimeoutTest : ClientLoader() {
                 client.get<ByteArray>("$TEST_SERVER/timeout/with-stream?delay=50")
             }
 
+            assertTrue { e is HttpTimeoutCancellationException }
+        }
+    }
+
+    @Test
+    fun redirectTest(): Unit = clientTests {
+        config {
+            install(HttpTimeout) { requestTimeout = 100 }
+        }
+
+        test { client ->
+            val response = client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=10&count=2")
+            assertEquals("Text", response)
+        }
+    }
+
+    @Test
+    fun redirectRequestTimeoutOnFirstStepTest(): Unit = clientTest {
+        config {
+            install(HttpTimeout) { requestTimeout = 100 }
+        }
+
+        test { client ->
+            val e = assertFails {
+                client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=200&count=5")
+            }
+
+            assertTrue { e is HttpTimeoutCancellationException }
+        }
+    }
+
+    @Test
+    fun redirectRequestTimeoutOnSecondStepTest(): Unit = clientTest {
+        config {
+            install(HttpTimeout) { requestTimeout = 100 }
+        }
+
+        test { client ->
+            val e = assertFails {
+                client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=50&count=5")
+            }
+
+            println(e)
             assertTrue { e is HttpTimeoutCancellationException }
         }
     }
