@@ -39,18 +39,35 @@ class HttpTimeout(private val requestTimeout: Long) {
 
         override fun install(feature: HttpTimeout, scope: HttpClient) {
             scope.requestPipeline.intercept(HttpRequestPipeline.Before) {
-                context.executionContext = Job(context.executionContext)
+                val executionContext = Job(context.executionContext)
 
-                val killer = launch {
-                    delay(feature.requestTimeout)
-                    context.executionContext!![Job]!!.cancel(HttpTimeoutCancellationException(
-                        "Request timeout has been expired [${feature.requestTimeout} ms]"
-                    ))
+                try {
+                    context.executionContext = executionContext
+
+                    val killer = launch {
+                        delay(feature.requestTimeout)
+                        executionContext.completeExceptionally(
+                            HttpTimeoutException(
+                                "Request timeout has been expired [${feature.requestTimeout} ms]"
+                            )
+                        )
+                    }
+
+                    executionContext.invokeOnCompletion {
+                        killer.cancel()
+                    }
+
+                    proceed()
+                }
+                catch (e: Throwable) {
+                    if (executionContext.isActive)
+                        executionContext.completeExceptionally(e)
+
+                    throw e
                 }
 
-                context.executionContext!!.invokeOnCompletion {
-                    killer.cancel()
-                }
+                if (executionContext.isActive)
+                    executionContext.complete()
             }
         }
     }
@@ -59,4 +76,4 @@ class HttpTimeout(private val requestTimeout: Long) {
 /**
  * This exception is thrown by [HttpTimeout] to indicate timeout.
  */
-class HttpTimeoutCancellationException(message: String? = null) : CancellationException(message)
+class HttpTimeoutException(message: String? = null) : Exception(message)

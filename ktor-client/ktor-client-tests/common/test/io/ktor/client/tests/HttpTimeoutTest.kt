@@ -34,7 +34,7 @@ class HttpTimeoutTest : ClientLoader() {
                 client.get<String>("$TEST_SERVER/timeout/with-delay?delay=200")
             }
 
-            assertTrue { e is HttpTimeoutCancellationException }
+            assertTrue { e is HttpTimeoutException }
         }
     }
 
@@ -62,7 +62,7 @@ class HttpTimeoutTest : ClientLoader() {
                 client.get<ByteArray>("$TEST_SERVER/timeout/with-stream?delay=50")
             }
 
-            assertTrue { e is HttpTimeoutCancellationException }
+            assertTrue { e is HttpTimeoutException }
         }
     }
 
@@ -89,7 +89,7 @@ class HttpTimeoutTest : ClientLoader() {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=200&count=5")
             }
 
-            assertTrue { e is HttpTimeoutCancellationException }
+            assertTrue { e is HttpTimeoutException }
         }
     }
 
@@ -105,7 +105,7 @@ class HttpTimeoutTest : ClientLoader() {
             }
 
             println(e)
-            assertTrue { e is HttpTimeoutCancellationException }
+            assertTrue { e is HttpTimeoutException }
         }
     }
 }

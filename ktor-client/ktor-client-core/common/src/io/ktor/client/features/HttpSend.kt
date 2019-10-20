@@ -75,13 +75,6 @@ class HttpSend(
                         break@passInterceptors
                     }
                 } while (callChanged)
-
-                val execution = context.executionContext
-                check(execution is CompletableJob)
-                execution.complete() // At this moment we have only to complete call to complete the whole execution,
-                // at the same time we can call "complete()" on execution because after that the job will be in
-                // "completing" state and waiting for call to finally complete.
-
                 proceedWith(currentCall)
             }
         }
