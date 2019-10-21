@@ -10,26 +10,28 @@ import io.ktor.client.request.*
 import io.ktor.client.tests.utils.*
 import io.ktor.http.*
 import io.ktor.utils.io.core.*
-import kotlinx.coroutines.*
 import kotlin.reflect.*
 import kotlin.test.*
 
-private fun assertContainsCause(expected: KClass<out Throwable>, cause: Throwable?) {
-    var currCause = cause
+/**
+ * Util function that checks that the specified [exception] is the [expectedCause] itself or caused by it.
+ */
+private fun assertContainsCause(expectedCause: KClass<out Throwable>, exception: Throwable?) {
+    var currCause = exception
     while (currCause != null) {
-        if (currCause::class == expected) {
+        if (currCause::class == expectedCause) {
             return
         }
 
         currCause = currCause.cause
     }
 
-    fail("Exception expected to have $expected cause, but it doesn't.")
+    fail("Exception expected to have $expectedCause cause, but it doesn't.")
 }
 
 class HttpTimeoutTest : ClientLoader() {
     @Test
-    fun getTest(): Unit = clientTest {
+    fun getTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 500 }
         }
@@ -41,7 +43,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun getRequestTimeoutTest(): Unit = clientTest {
+    fun getRequestTimeoutTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 10 }
         }
@@ -56,7 +58,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun getWithSeparateReceive(): Unit = clientTests {
+    fun getWithSeparateReceive() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 200 }
         }
@@ -70,7 +72,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun getRequestTimeoutWithSeparateReceive(): Unit = clientTests {
+    fun getRequestTimeoutWithSeparateReceive() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 200 }
         }
@@ -84,7 +86,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun getStreamTest(): Unit = clientTest {
+    fun getStreamTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 500 }
         }
@@ -97,7 +99,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun getStreamRequestTimeoutTest(): Unit = clientTest {
+    fun getStreamRequestTimeoutTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 500 }
         }
@@ -112,7 +114,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun redirectTest(): Unit = clientTests {
+    fun redirectTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 500 }
         }
@@ -124,7 +126,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun redirectRequestTimeoutOnFirstStepTest(): Unit = clientTest {
+    fun redirectRequestTimeoutOnFirstStepTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 10 }
         }
@@ -139,7 +141,7 @@ class HttpTimeoutTest : ClientLoader() {
     }
 
     @Test
-    fun redirectRequestTimeoutOnSecondStepTest(): Unit = clientTest {
+    fun redirectRequestTimeoutOnSecondStepTest() = clientTests {
         config {
             install(HttpTimeout) { requestTimeout = 500 }
         }

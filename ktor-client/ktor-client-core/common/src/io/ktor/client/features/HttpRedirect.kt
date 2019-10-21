@@ -9,6 +9,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.util.*
+import kotlinx.coroutines.*
 
 /**
  * [HttpClient] feature that handles http redirect
@@ -35,7 +36,6 @@ class HttpRedirect {
                 call.close()
 
                 call = execute(HttpRequestBuilder().apply {
-//                    takeFrom(origin.request)
                     takeFrom(context)
                     url.parameters.clear()
 
