@@ -29,7 +29,7 @@ class HttpTimeout(private val requestTimeout: Long) {
     }
 
     /**
-     * Companion object for feature installation
+     * Companion object for feature installation.
      */
     companion object Feature : HttpClientFeature<Configuration, HttpTimeout> {
 
@@ -39,35 +39,18 @@ class HttpTimeout(private val requestTimeout: Long) {
 
         override fun install(feature: HttpTimeout, scope: HttpClient) {
             scope.requestPipeline.intercept(HttpRequestPipeline.Before) {
-                val executionContext = Job(context.executionContext)
-
-                try {
-                    context.executionContext = executionContext
-
-                    val killer = launch {
-                        delay(feature.requestTimeout)
-                        executionContext.cancel(
-                            HttpTimeoutCancellationException(
-                                "Request timeout has been expired [${feature.requestTimeout} ms]"
-                            )
+                val killer = launch {
+                    delay(feature.requestTimeout)
+                    context.executionContext!!.cancel(
+                        HttpTimeoutCancellationException(
+                            "Request timeout has been expired [${feature.requestTimeout} ms]"
                         )
-                    }
-
-                    executionContext.invokeOnCompletion {
-                        killer.cancel()
-                    }
-
-                    proceed()
-                }
-                catch (e: Throwable) {
-                    if (executionContext.isActive)
-                        executionContext.completeExceptionally(e)
-
-                    throw e
+                    )
                 }
 
-                if (executionContext.isActive)
-                    executionContext.complete()
+                context.executionContext!!.invokeOnCompletion {
+                    killer.cancel()
+                }
             }
         }
     }
