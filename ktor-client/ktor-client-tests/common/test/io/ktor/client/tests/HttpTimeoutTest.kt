@@ -49,11 +49,11 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         test { client ->
-            val e = assertFails {
+            val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-delay?delay=500")
             }
 
-            assertContainsCause(HttpTimeoutCancellationException::class, e)
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 
@@ -79,9 +79,9 @@ class HttpTimeoutTest : ClientLoader() {
 
         test { client ->
             val call = client.call("$TEST_SERVER/timeout/with-stream?delay=100") { method = HttpMethod.Get }
-            val e = assertFails { call.receive<String>() }
+            val exception = assertFails { call.receive<String>() }
 
-            assertContainsCause(HttpTimeoutCancellationException::class, e)
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 
@@ -105,11 +105,11 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         test { client ->
-            val e = assertFails {
+            val exception = assertFails {
                 client.get<ByteArray>("$TEST_SERVER/timeout/with-stream?delay=200")
             }
 
-            assertContainsCause(HttpTimeoutCancellationException::class, e)
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 
@@ -132,11 +132,11 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         test { client ->
-            val e = assertFails {
+            val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=500&count=5")
             }
 
-            assertEquals(HttpTimeoutCancellationException::class, e::class)
+            assertEquals(HttpTimeoutCancellationException::class, exception::class)
         }
     }
 
@@ -147,11 +147,11 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         test { client ->
-            val e = assertFails {
+            val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=250&count=5")
             }
 
-            assertContainsCause(HttpTimeoutCancellationException::class, e)
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 }
