@@ -46,8 +46,8 @@ class HttpTimeout(private val requestTimeout: Long) {
 
                     val killer = launch {
                         delay(feature.requestTimeout)
-                        executionContext.completeExceptionally(
-                            HttpTimeoutException(
+                        executionContext.cancel(
+                            HttpTimeoutCancellationException(
                                 "Request timeout has been expired [${feature.requestTimeout} ms]"
                             )
                         )
@@ -76,4 +76,4 @@ class HttpTimeout(private val requestTimeout: Long) {
 /**
  * This exception is thrown by [HttpTimeout] to indicate timeout.
  */
-class HttpTimeoutException(message: String? = null) : Exception(message)
+class HttpTimeoutCancellationException(message: String? = null) : CancellationException(message)
