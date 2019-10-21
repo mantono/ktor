@@ -41,7 +41,6 @@ abstract class HttpClientJvmEngine(engineName: String) : HttpClientEngine {
     protected suspend fun createCallContext(executionContext: Job): CoroutineContext {
         val callJob = Job(executionContext)
         val callContext = coroutineContext + callJob
-        println("Call job: $callJob")
         val parentCoroutineJob = currentContext()[Job]
         val onParentCancelCleanupHandle = parentCoroutineJob?.invokeOnCompletion(
             onCancelling = true

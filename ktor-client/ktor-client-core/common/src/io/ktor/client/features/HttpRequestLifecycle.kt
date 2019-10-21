@@ -28,7 +28,6 @@ class HttpRequestLifecycle {
                 val executionContext = Job(context.executionContext)
 
                 try {
-                    println("Execution context ${context.executionContext} -> $executionContext")
                     context.executionContext = executionContext
 
                     proceed()

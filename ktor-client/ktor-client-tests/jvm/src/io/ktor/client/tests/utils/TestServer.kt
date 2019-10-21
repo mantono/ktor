@@ -14,6 +14,7 @@ import java.util.concurrent.*
 
 private const val DEFAULT_PORT: Int = 8080
 private const val HTTP_PROXY_PORT: Int = 8082
+private const val SILENT_PORT: Int = 8083
 
 internal fun startServer(): Closeable {
     val logger = LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME) as ch.qos.logback.classic.Logger
@@ -26,9 +27,12 @@ internal fun startServer(): Closeable {
 
     val proxyServer = TestTcpServer(HTTP_PROXY_PORT, ::proxyHandler)
 
+    val silentServer = TestSilentServer(SILENT_PORT)
+
     return Closeable {
         proxyServer.close()
         server.stop(0L, 0L, TimeUnit.MILLISECONDS)
+        silentServer.close()
     }
 }
 

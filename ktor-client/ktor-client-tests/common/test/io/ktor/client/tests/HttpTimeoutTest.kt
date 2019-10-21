@@ -17,16 +17,18 @@ import kotlin.test.*
  * Util function that checks that the specified [exception] is the [expectedCause] itself or caused by it.
  */
 private fun assertContainsCause(expectedCause: KClass<out Throwable>, exception: Throwable?) {
+    var prevCause: Throwable? = null
     var currCause = exception
     while (currCause != null) {
         if (currCause::class == expectedCause) {
             return
         }
 
+        prevCause = currCause
         currCause = currCause.cause
     }
 
-    fail("Exception expected to have $expectedCause cause, but it doesn't.")
+    fail("Exception expected to have $expectedCause cause, but it doesn't (root cause is $prevCause).")
 }
 
 class HttpTimeoutTest : ClientLoader() {
@@ -149,6 +151,36 @@ class HttpTimeoutTest : ClientLoader() {
         test { client ->
             val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=250&count=5")
+            }
+
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
+        }
+    }
+
+    @Test
+    fun connectionTimeoutTest() = clientTests {
+        config {
+            install(HttpTimeout) { connectTimeout = 500 }
+        }
+
+        test { client ->
+            val exception = assertFails {
+                client.get<String>("$SILENT_SERVER/")
+            }
+
+            assertContainsCause(HttpTimeoutCancellationException::class, exception)
+        }
+    }
+
+    @Test
+    fun socketTimeoutTest() = clientTests {
+        config {
+            install(HttpTimeout) { socketTimeout = 100 }
+        }
+
+        test { client ->
+            val exception = assertFails {
+                client.get<String>("$TEST_SERVER/timeout/with-stream?delay=1000")
             }
 
             assertContainsCause(HttpTimeoutCancellationException::class, exception)
