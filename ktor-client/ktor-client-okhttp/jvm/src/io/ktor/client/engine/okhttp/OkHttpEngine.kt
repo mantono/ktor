@@ -51,17 +51,15 @@ class OkHttpEngine(
 
     override fun close() {
         val clientTask = coroutineContext[Job] as CompletableJob
-        clientTask.complete()
-
         clientTask.invokeOnCompletion {
-            launch(dispatcher) {
+            GlobalScope.launch {
                 engine.dispatcher().executorService().shutdown()
                 engine.connectionPool().evictAll()
                 engine.cache()?.close()
-            }.invokeOnCompletion {
-                (dispatcher as Closeable).close()
             }
         }
+
+        super.close()
     }
 
     private suspend fun executeWebSocketRequest(
