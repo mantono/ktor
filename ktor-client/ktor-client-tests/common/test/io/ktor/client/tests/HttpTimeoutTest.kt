@@ -4,6 +4,7 @@
 
 package io.ktor.client.tests
 
+import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.features.*
 import io.ktor.client.request.*
@@ -32,6 +33,14 @@ private fun assertContainsCause(expectedCause: KClass<out Throwable>, exception:
     fail("Exception expected to have $expectedCause cause, but it doesn't (root cause is $prevCause).")
 }
 
+private fun TestClientBuilder<*>.testWithTimeout(timeout: Long, block: suspend (client: HttpClient) -> Unit) {
+    test = { client ->
+        withTimeout(timeout) {
+            block(client)
+        }
+    }
+}
+
 class HttpTimeoutTest : ClientLoader() {
     @Test
     fun getTest() = clientTests {
@@ -39,7 +48,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 500 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val response = client.get<String>("$TEST_SERVER/timeout/with-delay?delay=10")
             assertEquals("Text", response)
         }
@@ -51,7 +60,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 10 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-delay?delay=500")
             }
@@ -66,7 +75,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 200 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val call = client.call("$TEST_SERVER/timeout/with-delay?delay=10") { method = HttpMethod.Get }
             val res: String = call.receive()
 
@@ -80,7 +89,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 200 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val call = client.call("$TEST_SERVER/timeout/with-stream?delay=100") { method = HttpMethod.Get }
             val exception = assertFails { call.receive<String>() }
 
@@ -94,7 +103,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 500 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val response = client.get<ByteArray>("$TEST_SERVER/timeout/with-stream?delay=10")
 
             assertEquals("Text", String(response))
@@ -107,7 +116,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 500 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val exception = assertFails {
                 client.get<ByteArray>("$TEST_SERVER/timeout/with-stream?delay=200")
             }
@@ -122,7 +131,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 500 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val response = client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=10&count=2")
             assertEquals("Text", response)
         }
@@ -134,7 +143,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 10 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=500&count=5")
             }
@@ -149,7 +158,7 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { requestTimeout = 200 }
         }
 
-        test { client ->
+        testWithTimeout(5_000) { client ->
             val exception = assertFails {
                 client.get<String>("$TEST_SERVER/timeout/with-redirect?delay=250&count=5")
             }
@@ -164,14 +173,12 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { connectTimeout = 100 }
         }
 
-        test { client ->
-            withTimeout(1_000) {
-                val exception = assertFails {
-                    client.get<String>("http://www.google.com:81")
-                }
-
-//                assertContainsCause(HttpTimeoutCancellationException::class, exception)
+        testWithTimeout(5_000) { client ->
+            val exception = assertFails {
+                client.get<String>("http://www.google.com:81")
             }
+
+//            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 
@@ -181,14 +188,12 @@ class HttpTimeoutTest : ClientLoader() {
             install(HttpTimeout) { socketTimeout = 100 }
         }
 
-        test { client ->
-            withTimeout(1_000) {
-                val exception = assertFails {
-                    client.get<String>("$TEST_SERVER/timeout/with-stream?delay=1000")
-                }
-
-//                assertContainsCause(HttpTimeoutCancellationException::class, exception)
+        testWithTimeout(5_000) { client ->
+            val exception = assertFails {
+                client.get<String>("$TEST_SERVER/timeout/with-stream?delay=1000")
             }
+
+//            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 }
