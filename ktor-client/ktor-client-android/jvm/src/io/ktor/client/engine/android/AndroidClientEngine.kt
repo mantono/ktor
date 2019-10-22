@@ -6,6 +6,7 @@ package io.ktor.client.engine.android
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -39,6 +40,12 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
             val connection: HttpURLConnection = getProxyAwareConnection(url).apply {
                 connectTimeout = config.connectTimeout
                 readTimeout = config.socketTimeout
+
+                if (data.attributes.contains(httpTimeoutAttributesKey)) {
+                    val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+                    timeoutAttributes.connectTimeout?.let { connectTimeout = it.toInt() }
+                    timeoutAttributes.socketTimeout?.let { readTimeout = it.toInt() }
+                }
 
                 if (this is HttpsURLConnection) {
                     config.sslManager(this)

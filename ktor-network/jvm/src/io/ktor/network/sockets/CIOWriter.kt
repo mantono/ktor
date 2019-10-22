@@ -18,7 +18,8 @@ internal fun CoroutineScope.attachForWritingImpl(
     nioChannel: WritableByteChannel,
     selectable: Selectable,
     selector: SelectorManager,
-    pool: ObjectPool<ByteBuffer>
+    pool: ObjectPool<ByteBuffer>,
+    idleTimeout: Long? = null
 ): ReaderJob {
     val buffer = pool.borrow()
 
@@ -32,13 +33,26 @@ internal fun CoroutineScope.attachForWritingImpl(
                 buffer.flip()
 
                 while (buffer.hasRemaining()) {
-                    val rc = nioChannel.write(buffer)
-                    if (rc == 0) {
-                        selectable.interestOp(SelectInterest.WRITE, true)
-                        selector.select(selectable, SelectInterest.WRITE)
-                    } else {
-                        selectable.interestOp(SelectInterest.WRITE, false)
+                    var rc = 0
+
+                    val writeLambda: suspend CoroutineScope.() -> Unit = {
+                        while (rc == 0) {
+                            rc = nioChannel.write(buffer)
+                            if (rc == 0) {
+                                selectable.interestOp(SelectInterest.WRITE, true)
+                                selector.select(selectable, SelectInterest.WRITE)
+                            }
+                        }
                     }
+
+                    if (idleTimeout == null) {
+                        writeLambda()
+                    }
+                    else {
+                        withTimeout(idleTimeout, writeLambda)
+                    }
+
+                    selectable.interestOp(SelectInterest.WRITE, false)
                 }
             }
         } finally {
@@ -58,7 +72,8 @@ internal fun CoroutineScope.attachForWritingDirectImpl(
     channel: ByteChannel,
     nioChannel: WritableByteChannel,
     selectable: Selectable,
-    selector: SelectorManager
+    selector: SelectorManager,
+    idleTimeout: Long? = null
 ): ReaderJob = reader(Dispatchers.Unconfined + CoroutineName("cio-to-nio-writer"), channel) {
     selectable.interestOp(SelectInterest.WRITE, false)
     try {
@@ -72,14 +87,26 @@ internal fun CoroutineScope.attachForWritingDirectImpl(
                 }
 
                 while (buffer.hasRemaining()) {
-                    val r = nioChannel.write(buffer)
+                    var rc = 0
 
-                    if (r == 0) {
-                        selectable.interestOp(SelectInterest.WRITE, true)
-                        selector.select(selectable, SelectInterest.WRITE)
-                    } else {
-                        consumed(r)
+                    val writeLambda: suspend CoroutineScope.() -> Unit = {
+                        while (rc == 0) {
+                            rc = nioChannel.write(buffer)
+                            if (rc == 0) {
+                                selectable.interestOp(SelectInterest.WRITE, true)
+                                selector.select(selectable, SelectInterest.WRITE)
+                            }
+                        }
                     }
+
+                    if (idleTimeout == null) {
+                        writeLambda()
+                    }
+                    else {
+                        withTimeout(idleTimeout, writeLambda)
+                    }
+
+                    consumed(rc)
                 }
             }
         }

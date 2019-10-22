@@ -4,6 +4,7 @@
 
 package io.ktor.client.engine.cio
 
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.network.sockets.*
 import io.ktor.network.sockets.Socket
@@ -88,7 +89,12 @@ internal class Endpoint(
     ): Job = launch(task.context + CoroutineName("DedicatedRequest")) {
         val (request, response, callContext) = task
         try {
-            val connection = connect()
+            val connection = if (task.request.attributes.contains(httpTimeoutAttributesKey)) {
+                connect(task.request.attributes[httpTimeoutAttributesKey].socketTimeout)
+            }
+            else {
+                connect()
+            }
             val input = connection.openReadChannel()
             val output = connection.openWriteChannel()
             val requestTime = GMTDate()
@@ -134,7 +140,7 @@ internal class Endpoint(
         pipeline.pipelineContext.invokeOnCompletion { releaseConnection() }
     }
 
-    private suspend fun connect(): Socket {
+    private suspend fun connect(idleTimeout: Long? = null): Socket {
         val retryAttempts = config.endpoint.connectRetryAttempts
         val connectTimeout = config.endpoint.connectTimeout
 
@@ -146,7 +152,7 @@ internal class Endpoint(
 
                 if (address.isUnresolved) throw UnresolvedAddressException()
 
-                val connection = withTimeoutOrNull(connectTimeout) { connectionFactory.connect(address) }
+                val connection = withTimeoutOrNull(connectTimeout) { connectionFactory.connect(address, idleTimeout) }
                     ?: return@repeat
 
                 if (!secure) return@connect connection

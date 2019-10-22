@@ -18,7 +18,8 @@ import kotlin.coroutines.*
 internal abstract class NIOSocketImpl<out S>(
     override val channel: S,
     val selector: SelectorManager,
-    val pool: ObjectPool<ByteBuffer>?
+    val pool: ObjectPool<ByteBuffer>?,
+    private val idleTimeout: Long? = null
 ) : ReadWriteSocket, SelectableBase(channel), CoroutineScope
     where S : java.nio.channels.ByteChannel, S : java.nio.channels.SelectableChannel {
 
@@ -40,16 +41,16 @@ internal abstract class NIOSocketImpl<out S>(
     final override fun attachForReading(channel: ByteChannel): WriterJob {
         return attachFor("reading", channel, writerJob) {
             if (pool != null) {
-                attachForReadingImpl(channel, this.channel, this, selector, pool)
+                attachForReadingImpl(channel, this.channel, this, selector, pool, idleTimeout)
             } else {
-                attachForReadingDirectImpl(channel, this.channel, this, selector)
+                attachForReadingDirectImpl(channel, this.channel, this, selector, idleTimeout)
             }
         }
     }
 
     final override fun attachForWriting(channel: ByteChannel): ReaderJob {
         return attachFor("writing", channel, readerJob) {
-            attachForWritingDirectImpl(channel, this.channel, this, selector)
+            attachForWritingDirectImpl(channel, this.channel, this, selector, idleTimeout)
         }
     }
 

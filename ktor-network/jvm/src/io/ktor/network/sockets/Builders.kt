@@ -79,8 +79,9 @@ class TcpSocketBuilder internal constructor(
     suspend fun connect(
         hostname: String,
         port: Int,
+        idleTimeout: Long? = null,
         configure: SocketOptions.TCPClientSocketOptions.() -> Unit = {}
-    ): Socket = connect(InetSocketAddress(hostname, port), configure)
+    ): Socket = connect(InetSocketAddress(hostname, port), idleTimeout, configure)
 
     /**
      * Bind server socket at [port] to listen to [hostname]
@@ -96,6 +97,7 @@ class TcpSocketBuilder internal constructor(
      */
     suspend fun connect(
         remoteAddress: SocketAddress,
+        idleTimeout: Long? = null,
         configure: SocketOptions.TCPClientSocketOptions.() -> Unit = {}
     ): Socket = selector.buildOrClose({ openSocketChannel() }) {
         val options = options.peer().tcp()
@@ -103,7 +105,7 @@ class TcpSocketBuilder internal constructor(
         assignOptions(options)
         nonBlocking()
 
-        SocketImpl(this, socket()!!, selector).apply {
+        SocketImpl(this, socket()!!, selector, idleTimeout).apply {
             connect(remoteAddress)
         }
     }

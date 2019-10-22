@@ -6,6 +6,7 @@ package io.ktor.client.engine.jetty
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
@@ -58,7 +59,13 @@ internal suspend fun HTTP2Client.connect(
     url: Url, config: JettyEngineConfig
 ): Session = withPromise { promise ->
     val factory = if (url.protocol.isSecure()) config.sslContextFactory else null
-    connect(factory, InetSocketAddress(url.host, url.port), Session.Listener.Adapter(), promise)
+    // TODO: Move session listener to the right place.
+    connect(factory, InetSocketAddress(url.host, url.port), object : Session.Listener.Adapter() {
+        override fun onFailure(session: Session?, failure: Throwable?) {
+            println("FAIL, $promise")
+            promise.failed(failure)
+        }
+    }, promise)
 }
 
 private fun HttpRequestData.prepareHeadersFrame(): HeadersFrame {

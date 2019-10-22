@@ -5,6 +5,7 @@
 package io.ktor.client.engine.apache
 
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.*
 import org.apache.http.*
@@ -21,6 +22,13 @@ internal class ApacheEngine(override val config: ApacheEngineConfig) : HttpClien
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(data.executionContext)
+
+        if (data.attributes.contains(httpTimeoutAttributesKey)) {
+            val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+            timeoutAttributes.connectTimeout?.let { config.connectTimeout = it.toInt() }
+            timeoutAttributes.socketTimeout?.let { config.socketTimeout = it.toInt() }
+        }
+
         val apacheRequest = ApacheRequestProducer(data, config, callContext)
         return engine.sendRequest(apacheRequest, callContext)
     }

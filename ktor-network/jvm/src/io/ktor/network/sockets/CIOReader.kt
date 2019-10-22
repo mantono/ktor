@@ -19,20 +19,36 @@ internal fun CoroutineScope.attachForReadingImpl(
     nioChannel: ReadableByteChannel,
     selectable: Selectable,
     selector: SelectorManager,
-    pool: ObjectPool<ByteBuffer>
+    pool: ObjectPool<ByteBuffer>,
+    idleTimeout: Long? = null
 ): WriterJob {
     val buffer = pool.borrow()
     return writer(Dispatchers.Unconfined + CoroutineName("cio-from-nio-reader"), channel) {
         try {
             while (true) {
-                val rc = nioChannel.read(buffer)
+                var rc = 0
+
+                val readLambda: suspend CoroutineScope.() -> Unit = {
+                    while (rc == 0) {
+                        rc = nioChannel.read(buffer)
+                        if (rc == 0) {
+                            channel.flush()
+                            selectable.interestOp(SelectInterest.READ, true)
+                            selector.select(selectable, SelectInterest.READ)
+                        }
+                    }
+                }
+
+                if (idleTimeout == null) {
+                    readLambda()
+                }
+                else {
+                    withTimeout(idleTimeout, readLambda)
+                }
+
                 if (rc == -1) {
                     channel.close()
                     break
-                } else if (rc == 0) {
-                    channel.flush()
-                    selectable.interestOp(SelectInterest.READ, true)
-                    selector.select(selectable, SelectInterest.READ)
                 } else {
                     selectable.interestOp(SelectInterest.READ, false)
                     buffer.flip()
@@ -57,7 +73,8 @@ internal fun CoroutineScope.attachForReadingDirectImpl(
     channel: ByteChannel,
     nioChannel: ReadableByteChannel,
     selectable: Selectable,
-    selector: SelectorManager
+    selector: SelectorManager,
+    idleTimeout: Long? = null
 ): WriterJob = writer(Dispatchers.Unconfined + CoroutineName("cio-from-nio-reader"), channel) {
     try {
         selectable.interestOp(SelectInterest.READ, false)
@@ -72,13 +89,28 @@ internal fun CoroutineScope.attachForReadingDirectImpl(
                     continue
                 }
 
-                val rc = nioChannel.read(buffer)
+                var rc = 0
+
+                val readLambda: suspend CoroutineScope.() -> Unit = {
+                    while (rc == 0) {
+                        rc = nioChannel.read(buffer)
+                        if (rc == 0) {
+                            channel.flush()
+                            selectable.interestOp(SelectInterest.READ, true)
+                            selector.select(selectable, SelectInterest.READ)
+                        }
+                    }
+                }
+
+                if (idleTimeout == null) {
+                    readLambda()
+                }
+                else {
+                    withTimeout(idleTimeout, readLambda)
+                }
+
                 if (rc == -1) {
                     break
-                } else if (rc == 0) {
-                    channel.flush()
-                    selectable.interestOp(SelectInterest.READ, true)
-                    selector.select(selectable, SelectInterest.READ)
                 } else {
                     written(rc)
                 }

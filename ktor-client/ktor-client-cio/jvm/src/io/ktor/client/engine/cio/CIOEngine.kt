@@ -5,6 +5,7 @@
 package io.ktor.client.engine.cio
 
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.network.selector.*
@@ -36,6 +37,11 @@ internal class CIOEngine(
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         while (true) {
             if (closed.value) throw ClientClosedException()
+
+            if (data.attributes.contains(httpTimeoutAttributesKey)) {
+                val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+                timeoutAttributes.connectTimeout?.let { config.endpoint.connectTimeout = it }
+            }
 
             val endpoint = selectEndpoint(data.url, proxy)
             val callContext = createCallContext(data.executionContext)

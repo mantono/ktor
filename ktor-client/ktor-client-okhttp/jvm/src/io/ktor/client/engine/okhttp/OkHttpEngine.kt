@@ -6,6 +6,7 @@ package io.ktor.client.engine.okhttp
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -17,6 +18,7 @@ import okhttp3.*
 import okhttp3.internal.http.HttpMethod
 import okio.*
 import java.io.*
+import java.util.concurrent.*
 import kotlin.coroutines.*
 
 @InternalAPI
@@ -37,11 +39,28 @@ class OkHttpEngine(
         val callContext = createCallContext(data.executionContext)
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
+        var requestEngineBuilder = engine.newBuilder()
+
+        if (data.attributes.contains(httpTimeoutAttributesKey)) {
+            val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+
+            timeoutAttributes.connectTimeout?.let {
+                requestEngineBuilder = requestEngineBuilder.connectTimeout(it, TimeUnit.MILLISECONDS)
+            }
+
+            timeoutAttributes.socketTimeout?.let {
+                requestEngineBuilder = requestEngineBuilder.readTimeout(it, TimeUnit.MILLISECONDS)
+                requestEngineBuilder = requestEngineBuilder.writeTimeout(it, TimeUnit.MILLISECONDS)
+            }
+        }
+
+        val requestEngine = requestEngineBuilder.build()
+
         return try {
             if (data.isUpgradeRequest()) {
-                executeWebSocketRequest(engineRequest, callContext)
+                executeWebSocketRequest(requestEngine, engineRequest, callContext)
             } else {
-                executeHttpRequest(engineRequest, callContext)
+                executeHttpRequest(requestEngine, engineRequest, callContext)
             }
         } catch (cause: Throwable) {
             (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
@@ -54,7 +73,7 @@ class OkHttpEngine(
         clientTask.complete()
 
         clientTask.invokeOnCompletion {
-            launch(dispatcher) {
+            GlobalScope.launch(dispatcher) {
                 engine.dispatcher().executorService().shutdown()
                 engine.connectionPool().evictAll()
                 engine.cache()?.close()
@@ -65,6 +84,7 @@ class OkHttpEngine(
     }
 
     private suspend fun executeWebSocketRequest(
+        engine: OkHttpClient,
         engineRequest: Request,
         callContext: CoroutineContext
     ): HttpResponseData {
@@ -76,6 +96,7 @@ class OkHttpEngine(
     }
 
     private suspend fun executeHttpRequest(
+        engine: OkHttpClient,
         engineRequest: Request,
         callContext: CoroutineContext
     ): HttpResponseData {

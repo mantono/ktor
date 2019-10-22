@@ -5,6 +5,7 @@
 package io.ktor.client.engine.jetty
 
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
@@ -27,6 +28,13 @@ internal class JettyHttp2Engine(
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(data.executionContext)
         return try {
+
+            if (data.attributes.contains(httpTimeoutAttributesKey)) {
+                val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+                timeoutAttributes.connectTimeout?.let { jettyClient.connectTimeout = it }
+                timeoutAttributes.socketTimeout?.let { jettyClient.idleTimeout = it }
+            }
+
             data.executeRequest(jettyClient, config, callContext)
         } catch (cause: Throwable) {
             (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
