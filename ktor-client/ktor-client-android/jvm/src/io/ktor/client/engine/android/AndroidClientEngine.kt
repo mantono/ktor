@@ -38,11 +38,13 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
                 data.headers[HttpHeaders.ContentLength]?.toLong() ?: outgoingContent.contentLength
 
             val connection: HttpURLConnection = getProxyAwareConnection(url).apply {
+                // Take timeout parameters from engine config.
                 connectTimeout = config.connectTimeout
                 readTimeout = config.socketTimeout
 
-                if (data.attributes.contains(httpTimeoutAttributesKey)) {
-                    val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+                // Take timeout parameters from timeout feature and override previous values.
+                if (data.attributes.contains(HttpTimeoutAttributes.key)) {
+                    val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
                     timeoutAttributes.connectTimeout?.let { connectTimeout = it.toInt() }
                     timeoutAttributes.socketTimeout?.let { readTimeout = it.toInt() }
                 }

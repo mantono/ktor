@@ -29,8 +29,8 @@ internal class JettyHttp2Engine(
         val callContext = createCallContext(data.executionContext)
         return try {
 
-            if (data.attributes.contains(httpTimeoutAttributesKey)) {
-                val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+            if (data.attributes.contains(HttpTimeoutAttributes.key)) {
+                val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
                 timeoutAttributes.connectTimeout?.let { jettyClient.connectTimeout = it }
                 timeoutAttributes.socketTimeout?.let { jettyClient.idleTimeout = it }
             }

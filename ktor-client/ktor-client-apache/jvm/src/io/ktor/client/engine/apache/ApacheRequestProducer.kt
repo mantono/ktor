@@ -6,6 +6,7 @@ package io.ktor.client.engine.apache
 
 import io.ktor.client.call.*
 import io.ktor.client.engine.*
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.client.utils.*
 import io.ktor.http.*
@@ -142,13 +143,22 @@ internal class ApacheRequestProducer(
         }
 
         with(config) {
-            builder.config = RequestConfig.custom()
+            val requestConfigBuilder = RequestConfig.custom()
                 .setRedirectsEnabled(followRedirects)
+                // Take timeout parameters from engine config.
                 .setSocketTimeout(socketTimeout)
                 .setConnectTimeout(connectTimeout)
                 .setConnectionRequestTimeout(connectionRequestTimeout)
                 .customRequest()
-                .build()
+
+            // Take timeout parameters from timeout feature and override previous values.
+            if (requestData.attributes.contains(HttpTimeoutAttributes.key)) {
+                val timeoutAttributes = requestData.attributes[HttpTimeoutAttributes.key]
+                timeoutAttributes.connectTimeout?.let { requestConfigBuilder.setConnectTimeout(it.toInt()) }
+                timeoutAttributes.socketTimeout?.let { requestConfigBuilder.setSocketTimeout(it.toInt()) }
+            }
+
+            builder.config = requestConfigBuilder.build()
         }
 
         return builder.build()

@@ -29,18 +29,12 @@ class HttpRequestLifecycle {
 
                 try {
                     context.executionContext = executionContext
-
                     proceed()
                 }
                 catch(cause: Throwable) {
-                    if (executionContext.isActive) {
-                        executionContext.completeExceptionally(cause)
-                    }
-
+                    executionContext.completeExceptionally(cause)
                     throw cause
-                }
-
-                if (executionContext.isActive) {
+                } finally {
                     executionContext.complete()
                 }
             }

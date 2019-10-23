@@ -89,11 +89,15 @@ internal class Endpoint(
     ): Job = launch(task.context + CoroutineName("DedicatedRequest")) {
         val (request, response, callContext) = task
         try {
-            val connection = if (task.request.attributes.contains(httpTimeoutAttributesKey)) {
-                connect(task.request.attributes[httpTimeoutAttributesKey].socketTimeout)
-            }
-            else {
-                connect()
+            val connection = if (task.request.attributes.contains(HttpTimeoutAttributes.key)) {
+                task.request.attributes[HttpTimeoutAttributes.key].let {
+                    connect(
+                        it.socketTimeout ?: config.endpoint.socketTimeout,
+                        it.connectTimeout ?: config.endpoint.connectTimeout
+                    )
+                }
+            } else {
+                connect(config.endpoint.socketTimeout, config.endpoint.connectTimeout)
             }
             val input = connection.openReadChannel()
             val output = connection.openWriteChannel()
@@ -127,7 +131,7 @@ internal class Endpoint(
     }
 
     private suspend fun createPipeline() {
-        val socket = connect()
+        val socket = connect(config.endpoint.socketTimeout, config.endpoint.connectTimeout)
 
         val pipeline = ConnectionPipeline(
             config.endpoint.keepAliveTime, config.endpoint.pipelineMaxSize,
@@ -140,9 +144,8 @@ internal class Endpoint(
         pipeline.pipelineContext.invokeOnCompletion { releaseConnection() }
     }
 
-    private suspend fun connect(idleTimeout: Long? = null): Socket {
+    private suspend fun connect(socketTimeout: Long, connectTimeout: Long): Socket {
         val retryAttempts = config.endpoint.connectRetryAttempts
-        val connectTimeout = config.endpoint.connectTimeout
 
         connections.incrementAndGet()
 
@@ -152,8 +155,12 @@ internal class Endpoint(
 
                 if (address.isUnresolved) throw UnresolvedAddressException()
 
-                val connection = withTimeoutOrNull(connectTimeout) { connectionFactory.connect(address, idleTimeout) }
-                    ?: return@repeat
+                val connection = if (connectTimeout == -1L) {
+                    connectionFactory.connect(address, socketTimeout)
+                } else {
+                    withTimeoutOrNull(connectTimeout) { connectionFactory.connect(address, socketTimeout) }
+                        ?: return@repeat
+                }
 
                 if (!secure) return@connect connection
 

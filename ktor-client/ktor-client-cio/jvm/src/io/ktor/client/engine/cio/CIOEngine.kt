@@ -37,12 +37,6 @@ internal class CIOEngine(
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         while (true) {
             if (closed.value) throw ClientClosedException()
-
-            if (data.attributes.contains(httpTimeoutAttributesKey)) {
-                val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
-                timeoutAttributes.connectTimeout?.let { config.endpoint.connectTimeout = it }
-            }
-
             val endpoint = selectEndpoint(data.url, proxy)
             val callContext = createCallContext(data.executionContext)
             try {

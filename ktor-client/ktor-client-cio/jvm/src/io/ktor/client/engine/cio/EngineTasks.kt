@@ -4,6 +4,7 @@
 
 package io.ktor.client.engine.cio
 
+import io.ktor.client.features.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.util.date.*
@@ -18,7 +19,12 @@ internal data class RequestTask(
 
 internal fun RequestTask.requiresDedicatedConnection(): Boolean = listOf(request.headers, request.body.headers).any {
     it[HttpHeaders.Connection] == "close" || it.contains(HttpHeaders.Upgrade)
-} || request.method !in listOf(HttpMethod.Get, HttpMethod.Head)
+} || request.method !in listOf(
+    HttpMethod.Get,
+    HttpMethod.Head
+) || (request.attributes.contains(HttpTimeoutAttributes.key) &&
+    request.attributes[HttpTimeoutAttributes.key].let { it.connectTimeout != null || it.socketTimeout != null }
+    )
 
 
 internal data class ConnectionResponseTask(

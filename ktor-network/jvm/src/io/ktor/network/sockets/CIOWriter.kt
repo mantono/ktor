@@ -73,7 +73,7 @@ internal fun CoroutineScope.attachForWritingDirectImpl(
     nioChannel: WritableByteChannel,
     selectable: Selectable,
     selector: SelectorManager,
-    idleTimeout: Long? = null
+    socketTimeout: Long
 ): ReaderJob = reader(Dispatchers.Unconfined + CoroutineName("cio-to-nio-writer"), channel) {
     selectable.interestOp(SelectInterest.WRITE, false)
     try {
@@ -99,11 +99,11 @@ internal fun CoroutineScope.attachForWritingDirectImpl(
                         }
                     }
 
-                    if (idleTimeout == null) {
+                    if (socketTimeout == -1L) {
                         writeLambda()
                     }
                     else {
-                        withTimeout(idleTimeout, writeLambda)
+                        withTimeout(socketTimeout, writeLambda)
                     }
 
                     consumed(rc)

@@ -41,8 +41,8 @@ class OkHttpEngine(
 
         var requestEngineBuilder = engine.newBuilder()
 
-        if (data.attributes.contains(httpTimeoutAttributesKey)) {
-            val timeoutAttributes = data.attributes[httpTimeoutAttributesKey]
+        if (data.attributes.contains(HttpTimeoutAttributes.key)) {
+            val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
 
             timeoutAttributes.connectTimeout?.let {
                 requestEngineBuilder = requestEngineBuilder.connectTimeout(it, TimeUnit.MILLISECONDS)

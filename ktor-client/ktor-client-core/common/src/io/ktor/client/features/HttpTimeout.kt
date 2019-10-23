@@ -43,37 +43,32 @@ class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: 
 
         override fun install(feature: HttpTimeout, scope: HttpClient) {
             scope.requestPipeline.intercept(HttpRequestPipeline.Before) {
-                if (!context.attributes.contains(httpTimeoutAttributesKey)) {
-                    context.attributes.put(httpTimeoutAttributesKey, HttpTimeoutAttributes())
+                if (!context.attributes.contains(HttpTimeoutAttributes.key)) {
+                    context.attributes.put(HttpTimeoutAttributes.key, HttpTimeoutAttributes())
                 }
 
-                val httpTimeoutAttributes = context.attributes[httpTimeoutAttributesKey]
+                context.attributes[HttpTimeoutAttributes.key].apply {
+                    connectTimeout = connectTimeout ?: feature.connectTimeout
+                    socketTimeout = socketTimeout ?: feature.socketTimeout
 
-                if (httpTimeoutAttributes.requestTimeout == null) {
-                    httpTimeoutAttributes.requestTimeout = feature.requestTimeout
+                    val requestTimeout = requestTimeout ?: feature.requestTimeout
+                    if (requestTimeout != -1L) {
+                        val executionContext = context.executionContext!!
+                        val killer = launch {
+                            delay(requestTimeout)
+                            executionContext.cancel(
+                                HttpTimeoutCancellationException(
+                                    "Request timeout has been expired [${feature.requestTimeout} ms]"
+                                )
+                            )
+                        }
+
+                        context.executionContext!!.invokeOnCompletion {
+                            killer.cancel()
+                        }
+                    }
                 }
 
-                if (httpTimeoutAttributes.connectTimeout == null) {
-                    httpTimeoutAttributes.connectTimeout = feature.connectTimeout;
-                }
-
-                if (httpTimeoutAttributes.socketTimeout == null) {
-                    httpTimeoutAttributes.socketTimeout = feature.socketTimeout;
-                }
-
-                val requestTimeout = httpTimeoutAttributes.requestTimeout!!
-                val killer = launch {
-                    delay(requestTimeout)
-                    context.executionContext!!.cancel(
-                        HttpTimeoutCancellationException(
-                            "Request timeout has been expired [${feature.requestTimeout} ms]"
-                        )
-                    )
-                }
-
-                context.executionContext!!.invokeOnCompletion {
-                    killer.cancel()
-                }
             }
         }
     }
@@ -88,6 +83,8 @@ class HttpTimeoutAttributes(
     var requestTimeout: Long? = null,
     var connectTimeout: Long? = null,
     var socketTimeout: Long? = null
-)
-
-val httpTimeoutAttributesKey = AttributeKey<HttpTimeoutAttributes>("TimeoutAttributes")
+) {
+    companion object {
+        val key = AttributeKey<HttpTimeoutAttributes>("TimeoutAttributes")
+    }
+}

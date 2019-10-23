@@ -17,10 +17,10 @@ internal class ConnectionFactory(
 ) {
     private val semaphore = Semaphore(maxConnectionsCount)
 
-    suspend fun connect(address: InetSocketAddress, idleTimeout: Long? = null): Socket {
+    suspend fun connect(address: InetSocketAddress, socketTimeout: Long): Socket {
         semaphore.acquire()
         return try {
-            aSocket(selector).tcpNoDelay().tcp().connect(address, idleTimeout)
+            aSocket(selector).tcpNoDelay().tcp().connect(address, socketTimeout)
         } catch (cause: Throwable) {
             // a failure or cancellation
             semaphore.release()
