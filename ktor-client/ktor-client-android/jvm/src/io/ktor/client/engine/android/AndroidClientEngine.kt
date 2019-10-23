@@ -16,6 +16,7 @@ import kotlinx.coroutines.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import java.io.*
+import java.lang.Integer.*
 import java.net.*
 import javax.net.ssl.*
 import kotlin.coroutines.*
@@ -47,6 +48,16 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
                     val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
                     timeoutAttributes.connectTimeout?.let { connectTimeout = it.toInt() }
                     timeoutAttributes.socketTimeout?.let { readTimeout = it.toInt() }
+                    // Android performs blocking connect call, so we need to add an upper bound on the call time.
+                    timeoutAttributes.requestTimeout?.let {
+                        if (it != 0L) {
+                            connectTimeout = if (connectTimeout == 0) {
+                                it.toInt()
+                            } else {
+                                min(connectTimeout, it.toInt())
+                            }
+                        }
+                    }
                 }
 
                 if (this is HttpsURLConnection) {
@@ -79,7 +90,19 @@ class AndroidClientEngine(override val config: AndroidEngineConfig) : HttpClient
                 }
             }
 
-            connection.connect()
+            try {
+                connection.connect()
+            } catch (cause: Throwable) {
+                // Allow to throw request timeout cancellation exception instead of connect timeout exception.
+                yield()
+                if (cause is SocketTimeoutException) {
+                    throw HttpTimeoutCancellationException(
+                        "Connect timeout has been expired [${connection.connectTimeout} ms]"
+                    )
+                }
+
+                throw cause
+            }
 
             val statusCode = HttpStatusCode(connection.responseCode, connection.responseMessage)
             val content: ByteReadChannel = connection.content(callContext)
@@ -123,8 +146,10 @@ internal suspend fun OutgoingContent.writeTo(
 }
 
 internal fun HttpURLConnection.content(callScope: CoroutineContext): ByteReadChannel = try {
+    println("A")
     inputStream?.buffered()
 } catch (_: IOException) {
+    println("B")
     errorStream?.buffered()
 }?.toByteReadChannel(context = callScope, pool = KtorDefaultPool) ?: ByteReadChannel.Empty
 

@@ -47,5 +47,9 @@ internal suspend fun CloseableHttpAsyncClient.sendRequest(
         }
     }
 
-    execute(request, consumer, callback)
+    execute(request, consumer, callback).apply {
+        continuation.invokeOnCancellation {
+            cancel(true)
+        }
+    }
 }

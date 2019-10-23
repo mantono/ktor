@@ -39,7 +39,7 @@ internal fun CoroutineScope.attachForReadingImpl(
                     }
                 }
 
-                if (socketTimeout == -1L) {
+                if (socketTimeout == 0L) {
                     readLambda()
                 }
                 else {
@@ -102,7 +102,7 @@ internal fun CoroutineScope.attachForReadingDirectImpl(
                     }
                 }
 
-                if (socketTimeout == -1L) {
+                if (socketTimeout == 0L) {
                     readLambda()
                 }
                 else {

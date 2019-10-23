@@ -99,7 +99,7 @@ internal fun CoroutineScope.attachForWritingDirectImpl(
                         }
                     }
 
-                    if (socketTimeout == -1L) {
+                    if (socketTimeout == 0L) {
                         writeLambda()
                     }
                     else {

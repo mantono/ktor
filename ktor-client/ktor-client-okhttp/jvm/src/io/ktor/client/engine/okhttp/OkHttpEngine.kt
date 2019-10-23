@@ -18,7 +18,8 @@ import okhttp3.*
 import okhttp3.internal.http.HttpMethod
 import okio.*
 import java.io.*
-import java.util.concurrent.*
+import java.time.*
+import java.util.*
 import kotlin.coroutines.*
 
 @InternalAPI
@@ -35,32 +36,46 @@ class OkHttpEngine(
         builder.build()
     }
 
+    private val clientCache = ThreadLocal.withInitial {object : LinkedHashMap<HttpTimeoutAttributes, OkHttpClient>() {
+        override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, OkHttpClient>): Boolean {
+            return size > 10
+        }
+    }}
+
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(data.executionContext)
         val engineRequest = data.convertToOkHttpRequest(callContext)
 
-        var requestEngineBuilder = engine.newBuilder()
+        val requestEngine = if (data.attributes.contains(HttpTimeoutAttributes.key)) {
+            val httpTimeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
+            clientCache.get().computeIfAbsent(httpTimeoutAttributes) {
+                var requestEngineBuilder = engine.newBuilder()
 
-        if (data.attributes.contains(HttpTimeoutAttributes.key)) {
-            val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
+                httpTimeoutAttributes.connectTimeout?.let {
+                    requestEngineBuilder = requestEngineBuilder.connectTimeout(Duration.ofMillis(it))
+                }
 
-            timeoutAttributes.connectTimeout?.let {
-                requestEngineBuilder = requestEngineBuilder.connectTimeout(it, TimeUnit.MILLISECONDS)
-            }
+                httpTimeoutAttributes.socketTimeout?.let {
+                    requestEngineBuilder = requestEngineBuilder.readTimeout(Duration.ofMillis(it))
+                    requestEngineBuilder = requestEngineBuilder.writeTimeout(Duration.ofMillis(it))
+                }
 
-            timeoutAttributes.socketTimeout?.let {
-                requestEngineBuilder = requestEngineBuilder.readTimeout(it, TimeUnit.MILLISECONDS)
-                requestEngineBuilder = requestEngineBuilder.writeTimeout(it, TimeUnit.MILLISECONDS)
+                requestEngineBuilder.build()
             }
         }
+        else {
+            engine
+        }
 
-        val requestEngine = requestEngineBuilder.build()
+        println("requestEngine connect timeout: ${requestEngine.connectTimeoutMillis()}")
 
         return try {
-            if (data.isUpgradeRequest()) {
-                executeWebSocketRequest(requestEngine, engineRequest, callContext)
-            } else {
-                executeHttpRequest(requestEngine, engineRequest, callContext)
+            withContext(callContext) {
+                if (data.isUpgradeRequest()) {
+                    executeWebSocketRequest(requestEngine, engineRequest, callContext)
+                } else {
+                    executeHttpRequest(requestEngine, engineRequest, callContext)
+                }
             }
         } catch (cause: Throwable) {
             (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)

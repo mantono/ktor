@@ -10,32 +10,59 @@ import io.ktor.client.request.*
 import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
+import java.time.*
+import java.util.LinkedHashMap
 
 internal class JettyHttp2Engine(
     override val config: JettyEngineConfig
 ) : HttpClientJvmEngine("ktor-jetty") {
-    private val jettyClient = HTTP2Client().apply {
-        addBean(config.sslContextFactory)
-        check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
 
-        executor = QueuedThreadPool().apply {
-            name = "ktor-jetty-client-qtp"
+    private val clientCache = ThreadLocal.withInitial {object : LinkedHashMap<HttpTimeoutAttributes, HTTP2Client>() {
+        override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, HTTP2Client>): Boolean {
+            return size > 10
         }
+    }}
 
-        start()
+    private fun getJettyClient(data: HttpRequestData): HTTP2Client {
+        return if (data.attributes.contains(HttpTimeoutAttributes.key)) {
+            val httpTimeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
+            clientCache.get().computeIfAbsent(httpTimeoutAttributes) {
+                HTTP2Client().apply {
+                    addBean(config.sslContextFactory)
+                    check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
+
+                    executor = QueuedThreadPool().apply {
+                        name = "ktor-jetty-client-qtp"
+                    }
+
+                    httpTimeoutAttributes.connectTimeout?.let { connectTimeout = it }
+                    httpTimeoutAttributes.socketTimeout?.let { idleTimeout = it }
+
+                    start()
+                }
+            }
+        }
+        else {
+            return HTTP2Client().apply {
+                addBean(config.sslContextFactory)
+                check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
+
+                executor = QueuedThreadPool().apply {
+                    name = "ktor-jetty-client-qtp"
+                }
+
+                start()
+            }
+        }
     }
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(data.executionContext)
         return try {
-
-            if (data.attributes.contains(HttpTimeoutAttributes.key)) {
-                val timeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
-                timeoutAttributes.connectTimeout?.let { jettyClient.connectTimeout = it }
-                timeoutAttributes.socketTimeout?.let { jettyClient.idleTimeout = it }
+            val jettyClient = getJettyClient(data)
+            withContext(callContext) {
+                data.executeRequest(jettyClient, config, callContext)
             }
-
-            data.executeRequest(jettyClient, config, callContext)
         } catch (cause: Throwable) {
             (callContext[Job] as? CompletableJob)?.completeExceptionally(cause)
             throw cause
@@ -45,7 +72,7 @@ internal class JettyHttp2Engine(
     override fun close() {
         super.close()
         coroutineContext[Job]?.invokeOnCompletion {
-            jettyClient.stop()
+            clientCache.get().forEach { (_, client) -> client.stop() }
         }
     }
 }

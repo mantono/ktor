@@ -145,6 +145,7 @@ internal class Endpoint(
     }
 
     private suspend fun connect(socketTimeout: Long, connectTimeout: Long): Socket {
+        println("Connection, socket timeout $socketTimeout, connect timeout: $connectTimeout")
         val retryAttempts = config.endpoint.connectRetryAttempts
 
         connections.incrementAndGet()
@@ -155,7 +156,7 @@ internal class Endpoint(
 
                 if (address.isUnresolved) throw UnresolvedAddressException()
 
-                val connection = if (connectTimeout == -1L) {
+                val connection = if (connectTimeout == 0L) {
                     connectionFactory.connect(address, socketTimeout)
                 } else {
                     withTimeoutOrNull(connectTimeout) { connectionFactory.connect(address, socketTimeout) }

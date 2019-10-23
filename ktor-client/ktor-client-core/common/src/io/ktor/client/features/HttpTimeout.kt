@@ -50,17 +50,19 @@ class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: 
                 context.attributes[HttpTimeoutAttributes.key].apply {
                     connectTimeout = connectTimeout ?: feature.connectTimeout
                     socketTimeout = socketTimeout ?: feature.socketTimeout
+                    requestTimeout = requestTimeout ?: feature.requestTimeout
 
                     val requestTimeout = requestTimeout ?: feature.requestTimeout
-                    if (requestTimeout != -1L) {
+                    if (requestTimeout != 0L) {
                         val executionContext = context.executionContext!!
                         val killer = launch {
                             delay(requestTimeout)
                             executionContext.cancel(
                                 HttpTimeoutCancellationException(
-                                    "Request timeout has been expired [${feature.requestTimeout} ms]"
+                                    "Request timeout has been expired [$requestTimeout ms]"
                                 )
                             )
+                            println("Execution context canceled!")
                         }
 
                         context.executionContext!!.invokeOnCompletion {
@@ -79,7 +81,7 @@ class HttpTimeout(private val requestTimeout: Long, private val connectTimeout: 
  */
 class HttpTimeoutCancellationException(message: String? = null) : CancellationException(message)
 
-class HttpTimeoutAttributes(
+data class HttpTimeoutAttributes(
     var requestTimeout: Long? = null,
     var connectTimeout: Long? = null,
     var socketTimeout: Long? = null

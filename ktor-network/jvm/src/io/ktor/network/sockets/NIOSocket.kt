@@ -19,7 +19,7 @@ internal abstract class NIOSocketImpl<out S>(
     override val channel: S,
     val selector: SelectorManager,
     val pool: ObjectPool<ByteBuffer>?,
-    private val socketTimeout: Long = -1L
+    private val socketTimeout: Long = 0L
 ) : ReadWriteSocket, SelectableBase(channel), CoroutineScope
     where S : java.nio.channels.ByteChannel, S : java.nio.channels.SelectableChannel {
 

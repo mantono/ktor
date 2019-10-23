@@ -174,11 +174,9 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         testWithTimeout(5_000) { client ->
-            val exception = assertFails {
+            assertFails {
                 client.get<String>("http://www.google.com:81")
             }
-
-//            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 
@@ -189,11 +187,9 @@ class HttpTimeoutTest : ClientLoader() {
         }
 
         testWithTimeout(5_000) { client ->
-            val exception = assertFails {
-                client.get<String>("$TEST_SERVER/timeout/with-stream?delay=1000")
+            assertFails {
+                client.get<String>("$TEST_SERVER/timeout/with-stream?delay=5000")
             }
-
-//            assertContainsCause(HttpTimeoutCancellationException::class, exception)
         }
     }
 }
