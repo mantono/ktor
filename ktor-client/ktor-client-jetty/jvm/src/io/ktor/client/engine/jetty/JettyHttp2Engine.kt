@@ -11,45 +11,37 @@ import kotlinx.coroutines.*
 import org.eclipse.jetty.http2.client.*
 import org.eclipse.jetty.util.thread.*
 import java.time.*
-import java.util.LinkedHashMap
+import java.util.*
 
 internal class JettyHttp2Engine(
     override val config: JettyEngineConfig
 ) : HttpClientJvmEngine("ktor-jetty") {
 
-    private val clientCache = ThreadLocal.withInitial {object : LinkedHashMap<HttpTimeoutAttributes, HTTP2Client>() {
-        override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, HTTP2Client>): Boolean {
-            return size > 10
-        }
-    }}
+    private val clientCache =
+        Collections.synchronizedMap(object : LinkedHashMap<HttpTimeoutAttributes, HTTP2Client>(10, 0.75f, true) {
+            override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, HTTP2Client>): Boolean {
+                val remove = size > 10
+                if (remove) {
+                    // TODO: do we need to wait this client to complete all existing operations?
+                    eldest.value.stop()
+                }
+                return remove
+            }
+        })
 
     private fun getJettyClient(data: HttpRequestData): HTTP2Client {
-        return if (data.attributes.contains(HttpTimeoutAttributes.key)) {
-            val httpTimeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
-            clientCache.get().computeIfAbsent(httpTimeoutAttributes) {
-                HTTP2Client().apply {
-                    addBean(config.sslContextFactory)
-                    check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
-
-                    executor = QueuedThreadPool().apply {
-                        name = "ktor-jetty-client-qtp"
-                    }
-
-                    httpTimeoutAttributes.connectTimeout?.let { connectTimeout = it }
-                    httpTimeoutAttributes.socketTimeout?.let { idleTimeout = it }
-
-                    start()
-                }
-            }
-        }
-        else {
-            return HTTP2Client().apply {
+        val httpTimeoutAttributes = data.attributes.getOrNull(HttpTimeoutAttributes.key)
+        return clientCache.computeIfAbsent(httpTimeoutAttributes) {
+            HTTP2Client().apply {
                 addBean(config.sslContextFactory)
                 check(config.proxy == null) { "Proxy unsupported in Jetty engine." }
 
                 executor = QueuedThreadPool().apply {
                     name = "ktor-jetty-client-qtp"
                 }
+
+                httpTimeoutAttributes?.connectTimeout?.let { connectTimeout = it }
+                httpTimeoutAttributes?.socketTimeout?.let { idleTimeout = it }
 
                 start()
             }
@@ -72,7 +64,7 @@ internal class JettyHttp2Engine(
     override fun close() {
         super.close()
         coroutineContext[Job]?.invokeOnCompletion {
-            clientCache.get().forEach { (_, client) -> client.stop() }
+            clientCache.forEach { (_, client) -> client.stop() }
         }
     }
 }

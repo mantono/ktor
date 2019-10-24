@@ -36,11 +36,12 @@ class OkHttpEngine(
         builder.build()
     }
 
-    private val clientCache = ThreadLocal.withInitial {object : LinkedHashMap<HttpTimeoutAttributes, OkHttpClient>() {
-        override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, OkHttpClient>): Boolean {
-            return size > 10
-        }
-    }}
+    private val clientCache =
+        Collections.synchronizedMap(object : LinkedHashMap<HttpTimeoutAttributes, OkHttpClient>(10, 0.75f, true) {
+            override fun removeEldestEntry(eldest: Map.Entry<HttpTimeoutAttributes, OkHttpClient>): Boolean {
+                return size > 10
+            }
+        })
 
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         val callContext = createCallContext(data.executionContext)
@@ -48,7 +49,7 @@ class OkHttpEngine(
 
         val requestEngine = if (data.attributes.contains(HttpTimeoutAttributes.key)) {
             val httpTimeoutAttributes = data.attributes[HttpTimeoutAttributes.key]
-            clientCache.get().computeIfAbsent(httpTimeoutAttributes) {
+            clientCache.computeIfAbsent(httpTimeoutAttributes) {
                 var requestEngineBuilder = engine.newBuilder()
 
                 httpTimeoutAttributes.connectTimeout?.let {
@@ -62,8 +63,7 @@ class OkHttpEngine(
 
                 requestEngineBuilder.build()
             }
-        }
-        else {
+        } else {
             engine
         }
 
